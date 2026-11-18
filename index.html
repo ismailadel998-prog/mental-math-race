@@ -136,9 +136,23 @@ const pick=a=>a[Math.floor(Math.random()*a.length)];
 const app=document.getElementById('app');
 function clr(play){app.innerHTML='';document.documentElement.classList.toggle('play',!!play);document.body.classList.toggle('play',!!play);window.scrollTo(0,0);}
 const KEY='mmr_v1';
-let DB={unlocked:1,best:{},stars:{},history:[],phone:'',sound:true,teacherAll:false};
+let DB={unlocked:1,best:{},stars:{},history:[],phone:'',sound:true,teacherAll:false,name:'',outbox:[]};
 try{Object.assign(DB,JSON.parse(localStorage.getItem(KEY))||{})}catch(e){}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(DB))}catch(e){}};
+try{const t=new URLSearchParams(location.search).get('t');if(t){DB.phone=t.replace(/[^0-9]/g,'');save();}}catch(e){}
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const who=()=>DB.name||'Student';
+/* results go to the teacher's Google Sheet; kept in an outbox until they are sent */
+const API='https://script.google.com/macros/s/AKfycbxeixZASVmLJwDrJuzHaqY3Ver-XSDopT1FeDmSMFKX0yBsoHwEnfQwa_pmuvshs_qgkw/exec';
+function waLink(text){return `https://wa.me/${(DB.phone||'').replace(/[^0-9]/g,'')}?text=${encodeURIComponent(text)}`;}
+let sending=false;
+function flush(){if(sending||!API.startsWith('https://')||!(DB.outbox&&DB.outbox.length))return;if(navigator.onLine===false)return;
+ sending=true;const batch=DB.outbox.slice(0,50);
+ fetch(API,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(batch)})
+  .then(()=>{const ids=new Set(batch.map(x=>x.id));DB.outbox=DB.outbox.filter(x=>!ids.has(x.id));save();})
+  .catch(()=>{}).finally(()=>{sending=false;if(DB.outbox.length)setTimeout(flush,3000);});}
+function sendResult(r,mode){DB.outbox=DB.outbox||[];DB.outbox.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),date:r.date,name:who(),level:r.level,levelName:r.name,score:r.score,tries:r.tries,acc:r.acc,stars:r.stars||0,best:r.best||0,missed:r.missed||[],slow:r.slow||[],mode});save();flush();}
+window.addEventListener('online',flush);setTimeout(flush,1500);
 function beep(ok){if(!DB.sound)return;try{const A=window._a||(window._a=new (window.AudioContext||window.webkitAudioContext)());const o=A.createOscillator(),g=A.createGain();o.connect(g);g.connect(A.destination);o.type='triangle';o.frequency.value=ok?660:200;g.gain.value=.08;o.start();o.frequency.setValueAtTime(ok?990:150,A.currentTime+.07);g.gain.exponentialRampToValueAtTime(.001,A.currentTime+.2);o.stop(A.currentTime+.2);}catch(e){}}
 
 /* ================================================================ levels */
@@ -196,7 +210,7 @@ function genQ(i,review){if(review&&i>0&&Math.random()<.25){const j=R(0,i-1);cons
 
 /* ================================================================ screens */
 function home(){clr(false);
- app.append($(`<div class="top"><img class="logo" src="logo.png" alt="Ismail Math Teacher"><h1>🏎️ Mental Math Race<small>Learn the trick, then race your best!</small></h1><button class="ib" id="hi">📋</button><button class="ib" id="se">⚙️</button></div>`));
+ app.append($(`<div class="top"><img class="logo" src="logo.png" alt="Ismail Math Teacher"><h1>🏎️ Mental Math Race<small>Hi ${esc(who())}! Learn the trick, then race your best!</small></h1><button class="ib" id="hi">📋</button><button class="ib" id="se">⚙️</button></div>`));
  const map=$('<div class="map"></div>');let last=0;
  LEVELS.forEach((L,i)=>{if(L.step!==last){map.append($(`<div class="step">${L.step<8?'Step '+L.step:'Final'}</div>`));last=L.step;}
   const open=DB.teacherAll||i<DB.unlocked;const st=DB.stars[L.id]||0;const best=DB.best[L.id];
@@ -219,15 +233,15 @@ function keypad(onKey){const p=$(`<div class="pad"></div>`);['1','2','3','4','5'
  const kh=e=>{if(/^[0-9]$/.test(e.key))onKey(e.key);else if(e.key==='Backspace')onKey('⌫');else if(e.key==='Enter')onKey('✓');};document.addEventListener('keydown',kh);p._off=()=>document.removeEventListener('keydown',kh);return p;}
 
 /* ---------- learn (class) ---------- */
-function learn(i){const L=LEVELS[i];clr(true);let n=0,right=0,q,typed='',locked=false;
+function learn(i){const L=LEVELS[i];clr(true);let n=0,right=0,q,typed='',locked=false;const lmiss=[];
  const c=$(`<div class="card playwrap"><div class="hud"><button class="ib" id="bk">◀</button><span class="pill">📚 ${L.name}</span><span class="pill" id="sc" style="margin-left:auto">✅ 0 / 0</span></div>
   <div class="qbox"><div class="q" id="q"></div><div class="ans" id="a">&nbsp;</div></div><div class="tip" id="tip"></div>
   <div style="text-align:center;margin-top:6px"><button class="btn w" id="th" style="font-size:16px;padding:10px 14px;box-shadow:0 2px 0 #CBD6EE">💡 Show the trick</button></div></div>`);
  app.append(c);const pad=keypad(key);c.append(pad);const A=c.querySelector('#a'),T=c.querySelector('#tip');
- c.querySelector('#bk').onclick=()=>{pad._off();intro(i);};c.querySelector('#th').onclick=()=>{T.textContent='💡 '+q.tip;T.classList.add('show');};
+ c.querySelector('#bk').onclick=()=>{pad._off();if(n>0)sendResult({date:new Date().toISOString(),level:L.id,name:L.name,score:right,tries:n,acc:Math.round(right/n*100),missed:lmiss,slow:[]},'Learn');intro(i);};c.querySelector('#th').onclick=()=>{T.textContent='💡 '+q.tip;T.classList.add('show');};
  function next(){q=L.gen();typed='';locked=false;c.querySelector('#q').textContent=q.t.replace('☐','?')+(q.t.includes('☐')?'':' = ?');A.innerHTML='&nbsp;';A.className='ans';T.classList.remove('show');}
  function key(k){if(locked){if(k==='✓')next();return;}if(k==='⌫'){typed=typed.slice(0,-1);}else if(k==='✓'){if(typed)check();return;}else if(typed.length<4)typed+=k;A.textContent=typed||' ';if(typed.length===String(q.a).length&&+typed===q.a)check();}
- function check(){n++;const ok=+typed===q.a;if(ok)right++;beep(ok);A.className='ans '+(ok?'ok':'no');T.innerHTML=(ok?'✅ Yes! ':`❌ It's <b>${q.a}</b>. `)+'💡 '+q.tip+'<br><small style="color:var(--mute)">Press ✓ for the next one</small>';T.classList.add('show');locked=true;c.querySelector('#sc').textContent=`✅ ${right} / ${n}`;}
+ function check(){n++;const ok=+typed===q.a;if(ok)right++;else lmiss.push(q.t.includes('☐')?`${q.t.replace('☐','?')} → ${q.a} (wrote ${typed})`:`${q.t} = ${q.a} (wrote ${typed})`);beep(ok);A.className='ans '+(ok?'ok':'no');T.innerHTML=(ok?'✅ Yes! ':`❌ It's <b>${q.a}</b>. `)+'💡 '+q.tip+'<br><small style="color:var(--mute)">Press ✓ for the next one</small>';T.classList.add('show');locked=true;c.querySelector('#sc').textContent=`✅ ${right} / ${n}`;}
  next();}
 
 /* ---------- race (homework) ---------- */
@@ -254,7 +268,7 @@ function race(i){const L=LEVELS[i];clr(true);const best=DB.best[L.id]||0;const g
  function finish(){const acc=tries?Math.round(score/tries*100):0;let stars=0;if(score>=goal&&acc>=90)stars=3;else if(score>=goal*.7&&acc>=80)stars=2;else if(score>=goal*.4)stars=1;
   const newBest=score>best;if(newBest)DB.best[L.id]=score;DB.stars[L.id]=Math.max(DB.stars[L.id]||0,stars);let unlocked=false;if(stars===3&&DB.unlocked<=i+1&&i+1<LEVELS.length){DB.unlocked=i+2;unlocked=true;}
   const rec={date:new Date().toISOString(),level:L.id,name:L.name,score,tries,acc,stars,best:Math.max(best,score),missed:log.filter(x=>!x.ok).map(x=>x.t.includes('☐')?`${x.t.replace('☐','?')} → ${x.a} (wrote ${x.g})`:`${x.t} = ${x.a} (wrote ${x.g})`),slow:log.filter(x=>x.ok&&x.secs>4).map(x=>x.t.replace('☐','?'))};
-  DB.history.unshift(rec);DB.history=DB.history.slice(0,200);save();results(i,rec,newBest,unlocked);}
+  DB.history.unshift(rec);DB.history=DB.history.slice(0,200);save();sendResult(rec,'Race');results(i,rec,newBest,unlocked);}
 }
 function results(i,r,newBest,unlocked){const L=LEVELS[i];clr(false);
  const c=$(`<div class="card res"><div class="stars">${'★'.repeat(r.stars)}${'☆'.repeat(3-r.stars)}</div><div class="score">${r.score}</div><div style="font-weight:900;font-size:18px;color:var(--mute)">correct in 60 seconds · goal ${L.goal}</div>
@@ -263,19 +277,26 @@ function results(i,r,newBest,unlocked){const L=LEVELS[i];clr(false);
   ${r.missed.length?`<div class="miss"><b>Practise these:</b><ul>${r.missed.slice(0,8).map(m=>`<li>${m}</li>`).join('')}</ul></div>`:''}
   ${r.stars<3?`<div style="color:var(--mute);font-size:15px">To get 3 stars: ${L.goal} correct with 90% right. ${r.acc<90?'Slow down a little and use the trick!':'Keep racing, you are close!'}</div>`:''}
   <div class="acts"><button class="btn race" id="ag">🏁 Race again</button><a class="btn g" id="wa" style="text-decoration:none" target="_blank" rel="noopener">📤 Send to teacher</a><button class="btn w" id="cp">📋 Copy</button><button class="btn w" id="mp">🗺️ Levels</button></div></div>`);
- app.append(c);const msg=report(r);c.querySelector('#wa').href=`https://wa.me/${(DB.phone||'').replace(/[^0-9]/g,'')}?text=${encodeURIComponent(msg)}`;
+ app.append(c);const msg=report(r);c.querySelector('#wa').href=waLink(msg);
  c.querySelector('#ag').onclick=()=>race(i);c.querySelector('#mp').onclick=home;c.querySelector('#cp').onclick=e=>{try{navigator.clipboard.writeText(msg).then(()=>e.target.textContent='✅ Copied',()=>showText(msg));}catch(x){showText(msg);}};}
-function report(r){const d=new Date(r.date);return `🏎️ Mental Math Race – Khaled\n${d.toDateString()} ${d.toTimeString().slice(0,5)}\nLevel ${r.level.toUpperCase()}: ${r.name}\nScore: ${r.score} correct in 60 s (${r.acc}% right) ${'⭐'.repeat(r.stars)}\nBest: ${r.best}\n`+(r.missed.length?`Missed:\n${r.missed.slice(0,10).map(m=>'• '+m).join('\n')}\n`:'No mistakes! 🎉\n')+(r.slow.length?`Slow (>4 s): ${r.slow.slice(0,10).join(', ')}`:'');}
+function report(r,withLink){const d=new Date(r.date);return `🏎️ Mental Math Race – ${who()}\n${d.toDateString()} ${d.toTimeString().slice(0,5)}\nLevel ${r.level.toUpperCase()}: ${r.name}\nScore: ${r.score} correct in 60 s (${r.acc}% right) ${'⭐'.repeat(r.stars)}\nBest: ${r.best}\n`+(r.missed.length?`Missed:\n${r.missed.slice(0,10).map(m=>'• '+m).join('\n')}\n`:'No mistakes! 🎉\n')+(r.slow.length?`Slow (>4 s): ${r.slow.slice(0,10).join(', ')}\n`:'');}
 function showText(t){const m=$(`<div class="modal"><div class="card"><b>Copy this report</b><textarea class="txt" rows="9">${t}</textarea><div class="acts"><button class="btn">Close</button></div></div></div>`);m.querySelector('button').onclick=()=>m.remove();document.body.append(m);}
 function history(){clr(false);const c=$(`<div class="card"><div class="top" style="margin:0 0 8px"><button class="ib" id="bk">◀</button><h1 style="font-size:20px">📋 Race history</h1></div></div>`);
  if(!DB.history.length)c.append($('<p style="color:var(--mute)">No races yet.</p>'));else{const t=$('<table class="h"><tr><th>Date</th><th>Level</th><th>Score</th><th>Right</th><th></th></tr></table>');DB.history.slice(0,80).forEach(r=>{const tr=$(`<tr><td>${new Date(r.date).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</td><td>${r.level.toUpperCase()} ${r.name}</td><td><b>${r.score}</b></td><td>${r.acc}%</td><td style="color:#F2A900">${'★'.repeat(r.stars)}</td></tr>`);tr.onclick=()=>showText(report(r));t.append(tr);});c.append(t);}
  app.append(c);c.querySelector('#bk').onclick=home;}
-function settings(){const m=$(`<div class="modal"><div class="card"><h2 style="margin:0 0 6px">⚙️ Teacher settings</h2><div class="lbl">Teacher's WhatsApp number (with country code, e.g. 9665…)</div><input class="txt" id="ph" inputmode="tel" value="${DB.phone||''}">
+function settings(){const m=$(`<div class="modal"><div class="card"><h2 style="margin:0 0 6px">⚙️ Settings</h2><div class="lbl">Student name</div><input class="txt" id="nm" maxlength="30" value="${esc(DB.name||'')}"><div class="lbl">Teacher's WhatsApp number (with country code, e.g. 9665…)</div><input class="txt" id="ph" inputmode="tel" value="${DB.phone||''}">
   <div class="lbl">Options</div><label style="display:block;margin:6px 0"><input type="checkbox" id="al" ${DB.teacherAll?'checked':''}> Open all levels (teacher)</label><label style="display:block;margin:6px 0"><input type="checkbox" id="sn" ${DB.sound?'checked':''}> Sounds</label>
   <div class="acts" style="justify-content:flex-start"><button class="btn" id="ok">Save</button><button class="btn w" id="rs">Reset progress</button></div></div></div>`);document.body.append(m);
- m.querySelector('#ok').onclick=()=>{DB.phone=m.querySelector('#ph').value.trim();DB.teacherAll=m.querySelector('#al').checked;DB.sound=m.querySelector('#sn').checked;save();m.remove();home();};
+ m.querySelector('#ok').onclick=()=>{const nm=m.querySelector('#nm').value.trim();if(nm)DB.name=nm;DB.phone=m.querySelector('#ph').value.trim();DB.teacherAll=m.querySelector('#al').checked;DB.sound=m.querySelector('#sn').checked;save();m.remove();home();};
  m.querySelector('#rs').onclick=()=>{m.remove();const k=$(`<div class="modal"><div class="card" style="text-align:center"><div style="font-size:19px;font-weight:900;margin-bottom:12px">Reset all stars, best scores and history?</div><div class="acts"><button class="btn race" id="y">Yes, reset</button><button class="btn w" id="n">No</button></div></div></div>`);document.body.append(k);k.querySelector('#n').onclick=()=>k.remove();k.querySelector('#y').onclick=()=>{DB.unlocked=1;DB.best={};DB.stars={};DB.history=[];save();k.remove();home();};};}
-home();
+function welcome(){clr(false);
+ const c=$(`<div class="card" style="text-align:center;max-width:460px;margin:30px auto"><img src="logo.png" alt="Ismail Math Teacher" style="width:150px;height:150px;border-radius:50%;box-shadow:0 4px 14px rgba(30,50,110,.18)">
+  <h1 style="margin:14px 0 4px;font-size:28px">🏎️ Mental Math Race</h1><div style="color:var(--mute);margin-bottom:14px">Welcome! What is your name?</div>
+  <input class="txt" id="nm" maxlength="30" placeholder="Your name" autocomplete="off" style="text-align:center;font-size:22px;font-weight:700">
+  <div class="acts"><button class="btn race" id="go" style="font-size:20px;padding:14px 30px">Let's go! 🏁</button></div></div>`);
+ app.append(c);const f=c.querySelector('#nm');const go=()=>{const v=f.value.trim();if(!v){f.focus();f.style.borderColor='var(--coral)';return;}DB.name=v;save();home();};
+ c.querySelector('#go').onclick=go;f.onkeydown=e=>{if(e.key==='Enter')go();};setTimeout(()=>f.focus(),200);}
+if(DB.name)home();else welcome();
 </script>
 </body>
 </html>
