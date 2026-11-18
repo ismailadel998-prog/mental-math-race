@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Mental Math Race</title>
+<style>
+:root{--ink:#1B2440;--navy:#22306B;--blue:#3A6FF7;--sky:#CFE7FF;--grass:#7BC96F;--road:#4A5160;--sun:#FFC83D;--coral:#FF5D5D;--green:#22B573;--purple:#7B5CF5;--mute:#6B7896;--card:#fff}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{margin:0;min-height:100%;background:linear-gradient(#DDEEFF,#F4F8FF);color:var(--ink);font-family:"Trebuchet MS",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+button{font:inherit;cursor:pointer;color:inherit;border:0}
+#app{max-width:760px;margin:0 auto;padding:12px 12px 40px}
+.top{display:flex;align-items:center;gap:10px;margin:4px 0 12px}
+.logo{font-size:30px}
+.top h1{margin:0;font-size:24px;flex:1;letter-spacing:.3px}
+.top h1 small{display:block;font-size:13px;color:var(--mute);font-weight:400}
+.ib{background:#fff;border-radius:14px;padding:9px 12px;box-shadow:0 2px 6px rgba(30,50,110,.12);font-size:15px;font-weight:700}
+.card{background:#fff;border-radius:22px;padding:16px;box-shadow:0 4px 14px rgba(30,50,110,.10)}
+/* map */
+.map{position:relative;padding:6px 0 10px}
+.lvl{display:flex;align-items:center;gap:12px;background:#fff;border-radius:20px;padding:12px 14px;margin:10px 0;box-shadow:0 3px 10px rgba(30,50,110,.10);width:100%;text-align:left}
+.lvl .badge{flex:none;width:58px;height:58px;border-radius:18px;display:grid;place-items:center;font-size:22px;font-weight:900;color:#fff}
+.lvl b{display:block;font-size:18px}
+.lvl small{color:var(--mute);font-size:14px}
+.lvl .st{margin-left:auto;font-size:18px;color:#F2A900;white-space:nowrap}
+.lvl.lock{opacity:.5}
+.lvl.now{outline:3px solid var(--sun);animation:pulse 1.6s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 6px rgba(255,200,61,.35)}}
+.step{font-size:13px;font-weight:900;color:var(--blue);text-transform:uppercase;letter-spacing:1px;margin:16px 4px -2px}
+/* intro */
+.big{font-size:30px;font-weight:900;margin:4px 0}
+.btn{border-radius:18px;padding:16px 20px;font-weight:900;font-size:20px;color:#fff;background:var(--blue);box-shadow:0 4px 0 rgba(0,0,0,.18)}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.18)}
+.btn.race{background:linear-gradient(90deg,#FF7A45,#FF4D6D)}
+.btn.learn{background:linear-gradient(90deg,#3A6FF7,#7B5CF5)}
+.btn.g{background:var(--green)}.btn.w{background:#fff;color:var(--ink)}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.btns .btn{display:flex;flex-direction:column;align-items:center;gap:4px;padding:18px 10px}
+.btns .btn span{font-size:13px;font-weight:600;opacity:.95}
+.strat{background:linear-gradient(135deg,#FFF6D9,#FFE7A8);border-radius:20px;padding:14px 16px;margin:12px 0}
+.strat h3{margin:0 0 6px;font-size:20px}
+.ex{font-size:26px;font-weight:900;margin:8px 0;line-height:1.35}
+.ex .s{display:block;opacity:0;transform:translateY(6px);transition:.35s}
+.ex .s.on{opacity:1;transform:none}
+.say{background:#EEF3FF;border-radius:16px;padding:12px 14px;font-size:16px;line-height:1.45;margin-top:10px}
+.say b{color:var(--blue)}
+/* race */
+.hud{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.pill{background:#fff;border-radius:14px;padding:7px 12px;font-weight:900;box-shadow:0 2px 6px rgba(30,50,110,.10);font-size:16px}
+.pill.t{color:var(--coral);font-size:20px;min-width:72px;text-align:center}
+.track{position:relative;height:150px;border-radius:22px;overflow:hidden;background:linear-gradient(#9FD8FF 0 22%,var(--grass) 22% 30%,var(--road) 30% 92%,var(--grass) 92%);box-shadow:inset 0 -4px 0 rgba(0,0,0,.08)}
+.track .dash{position:absolute;left:0;right:0;top:61%;height:5px;background:repeating-linear-gradient(90deg,#fff 0 26px,transparent 26px 50px);opacity:.8}
+.track .finish{position:absolute;right:28px;top:30%;bottom:8%;width:16px;background:repeating-conic-gradient(#111 0 25%,#fff 0 50%) 0 0/16px 16px}
+.track .flag{position:absolute;right:16px;top:4%;font-size:30px}
+.car{position:absolute;left:8px;font-size:46px;transition:left .35s cubic-bezier(.3,1.6,.5,1);transform:scaleX(-1);line-height:1}
+.car.me{top:63%}
+.car.ghost{top:31%;opacity:.45;filter:grayscale(1)}
+.tag{position:absolute;font-size:11px;font-weight:900;color:#fff;background:rgba(0,0,0,.35);border-radius:8px;padding:2px 6px}
+.cloud{position:absolute;top:6px;font-size:22px;opacity:.9}
+.qbox{text-align:center;margin:14px 0 6px}
+.q{font-size:52px;font-weight:900;letter-spacing:1px}
+.ans{display:inline-block;min-width:120px;height:66px;border-radius:18px;background:#fff;border:4px solid #D8E2F5;font-size:42px;font-weight:900;line-height:58px;margin-top:6px;padding:0 14px}
+.ans.ok{border-color:var(--green);background:#E6F8EE}.ans.no{border-color:var(--coral);background:#FFE9E9;animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.tip{background:#FFF6D9;border:3px solid var(--sun);border-radius:18px;padding:10px 14px;font-size:18px;font-weight:700;margin:8px auto;max-width:520px;text-align:center;min-height:0;display:none}
+.tip.show{display:block;animation:pop .25s}
+@keyframes pop{from{transform:scale(.9);opacity:0}}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:420px;margin:10px auto 0}
+.pad button{height:64px;border-radius:18px;background:#fff;font-size:30px;font-weight:900;box-shadow:0 4px 0 #CBD6EE}
+.pad button:active{transform:translateY(3px);box-shadow:0 1px 0 #CBD6EE}
+.pad .k-ok{background:var(--green);color:#fff;box-shadow:0 4px 0 #168a56}
+.pad .k-del{background:#FFE3E3;color:var(--coral);box-shadow:0 4px 0 #F2B8B8}
+.plus{position:absolute;font-weight:900;color:var(--green);font-size:22px;animation:up .8s forwards;pointer-events:none}
+@keyframes up{to{transform:translateY(-40px);opacity:0}}
+.count{position:fixed;inset:0;display:grid;place-items:center;background:rgba(27,36,64,.55);z-index:9;font-size:120px;font-weight:900;color:#fff}
+/* results */
+.res{text-align:center}
+.stars{font-size:54px;letter-spacing:6px;color:#F2A900}
+.score{font-size:64px;font-weight:900;line-height:1}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}
+.grid3 div{background:#F2F6FF;border-radius:14px;padding:10px 4px;font-size:13px;color:var(--mute)}
+.grid3 b{display:block;font-size:22px;color:var(--ink)}
+.miss{text-align:left;background:#FFF4F4;border-radius:14px;padding:10px 14px;font-size:16px;margin:10px 0}
+.miss li{margin:3px 0}
+.unlock{background:linear-gradient(90deg,#22B573,#3A6FF7);color:#fff;border-radius:16px;padding:12px;font-weight:900;font-size:19px;margin:10px 0}
+.acts{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:12px}
+.acts .btn{font-size:17px;padding:13px 16px}
+.modal{position:fixed;inset:0;background:rgba(27,36,64,.55);display:grid;place-items:center;padding:16px;z-index:10}
+.modal .card{max-width:480px;width:100%}
+.txt{width:100%;padding:12px;border:2px solid #D8E2F5;border-radius:12px;font-size:17px;user-select:text}
+table.h{width:100%;border-collapse:collapse;font-size:15px}
+table.h td,table.h th{padding:7px 6px;border-bottom:1px solid #E3E9F5;text-align:left}
+.lbl{font-weight:900;color:var(--mute);font-size:14px;margin:12px 0 4px}
+@media (max-width:420px){.q{font-size:44px}.pad button{height:58px}.track{height:132px}.car{font-size:40px}}
+
+/* ---------- play screens: fit the screen, never scroll ---------- */
+html.play,body.play{height:100%;overflow:hidden;overscroll-behavior:none}
+body.play{position:fixed;inset:0;touch-action:manipulation}
+body.play #app{height:100vh;height:100dvh;padding:8px 10px;display:flex;flex-direction:column}
+body.play #app>.playwrap{flex:1;min-height:0;display:flex;flex-direction:column;padding:10px 12px}
+body.play #app>.playwrap:not(.card){padding:0}
+body.play .hud{margin-bottom:6px;flex:none}
+body.play .track{height:clamp(84px,20dvh,240px);flex:none}
+body.play .car{font-size:clamp(30px,5.5dvh,60px)}
+body.play .qbox{margin:auto 0 2px;padding-top:clamp(4px,1.2dvh,14px);flex:none}
+body.play .q{font-size:clamp(32px,6.5dvh,76px);line-height:1.1}
+body.play .ans{display:inline-flex;align-items:center;justify-content:center;height:clamp(46px,7.6dvh,96px);font-size:clamp(28px,5.4dvh,60px);line-height:1;margin-top:4px}
+body.play .tip{display:block;visibility:hidden;height:clamp(56px,10dvh,82px);margin:4px auto;padding:4px 12px;font-size:clamp(13px,2.2dvh,17px);line-height:1.25;overflow:hidden;flex:none;width:100%;animation:none}
+body.play .tip.show{visibility:visible}
+body.play .pad{margin:auto auto 0;width:100%;max-width:min(540px,100%);gap:clamp(6px,1.2dvh,12px)}
+body.play .pad button{height:clamp(42px,8.2dvh,86px);font-size:clamp(22px,4dvh,38px)}
+body.play #th{padding:6px 12px!important;font-size:14px!important}
+@media (orientation:landscape) and (max-height:820px){
+ body.play #app{max-width:1100px}
+ body.play #app>.playwrap{display:grid;grid-template-columns:1fr minmax(240px,36%);column-gap:18px;align-content:start}
+ body.play #app>.playwrap>*:not(.pad){grid-column:1}
+ body.play #app>.playwrap>.pad{grid-column:2;grid-row:1/span 8;align-self:center;margin:0}
+ body.play .pad button{height:clamp(40px,12dvh,72px)}
+ body.play .qbox{margin-top:0}
+ body.play .track{height:clamp(84px,24dvh,200px)}
+ body.play .q{font-size:clamp(30px,8dvh,64px)}
+ body.play .ans{height:clamp(44px,10dvh,80px);font-size:clamp(26px,7dvh,52px)}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+"use strict";
+/* ================================================================ helpers */
+const $=h=>{const t=document.createElement('template');t.innerHTML=h.trim();return t.content.firstElementChild;};
+const R=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const app=document.getElementById('app');
+function clr(play){app.innerHTML='';document.documentElement.classList.toggle('play',!!play);document.body.classList.toggle('play',!!play);window.scrollTo(0,0);}
+const KEY='mmr_v1';
+let DB={unlocked:1,best:{},stars:{},history:[],phone:'',sound:true,teacherAll:false};
+try{Object.assign(DB,JSON.parse(localStorage.getItem(KEY))||{})}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(DB))}catch(e){}};
+function beep(ok){if(!DB.sound)return;try{const A=window._a||(window._a=new (window.AudioContext||window.webkitAudioContext)());const o=A.createOscillator(),g=A.createGain();o.connect(g);g.connect(A.destination);o.type='triangle';o.frequency.value=ok?660:200;g.gain.value=.08;o.start();o.frequency.setValueAtTime(ok?990:150,A.currentTime+.07);g.gain.exponentialRampToValueAtTime(.001,A.currentTime+.2);o.stop(A.currentTime+.2);}catch(e){}}
+
+/* ================================================================ levels */
+const tipMul={2:'×2 = double it',5:'×5 = half of ×10',10:'×10 = put a 0 on the end',3:'×3 = double, then add one more group',4:'×4 = double, then double again',9:'×9 = ×10, then take away one group',6:'×6 = ×5, then add one more group',7:'×7 = ×5 + ×2',8:'×8 = double, double, double'};
+function mulQ(tables){const x=pick(tables),y=R(2,10);
+ const how={2:`${y} + ${y} = ${2*y}`,5:`${y} × 10 = ${10*y}, half is ${5*y}`,10:`${y} with a 0 → ${10*y}`,3:`${y} + ${y} = ${2*y}, + ${y} = ${3*y}`,4:`double ${y} = ${2*y}, double again = ${4*y}`,9:`${y} × 10 = ${10*y}, − ${y} = ${9*y}`,6:`${y} × 5 = ${5*y}, + ${y} = ${6*y}`,7:`${y} × 5 = ${5*y}, + ${y} × 2 = ${2*y} → ${7*y}`,8:`${y} → ${2*y} → ${4*y} → ${8*y}`}[x];
+ if(Math.random()<.4)return {t:`${x*y} ÷ ${x}`,a:y,tip:`Think: ${x} × ? = ${x*y}.  ${x} × ${y} = ${x*y}, so the answer is ${y}.`};
+ return Math.random()<.5?{t:`${x} × ${y}`,a:x*y,tip:`${tipMul[x]}: ${how}`}:{t:`${y} × ${x}`,a:x*y,tip:`${tipMul[x]}: ${how}`};}
+
+const LEVELS=[
+{id:'1',step:1,name:'Make 10',sub:'Pairs that make 10 and 100',color:'#FF7A45',goal:30,
+ card:{title:'Make 10',ex:['7 + ☐ = 10','7 needs 3 to make 10','7 + 3 = 10'],say:['The friends of 10 are 1+9, 2+8, 3+7, 4+6, 5+5. Say them out loud together.','Hold up 10 fingers. Fold 7: how many are left? That is 7\'s friend.','Tens work the same way: 3 + 7 = 10, so 30 + 70 = 100.']},
+ gen(){const k=R(0,4);const a=R(1,9);if(k===0)return {t:`${a} + ☐ = 10`,a:10-a,tip:`${a} needs ${10-a} to make 10.`};if(k===1)return {t:`10 − ${a}`,a:10-a,tip:`${a} + ${10-a} = 10, so 10 − ${a} = ${10-a}.`};
+  if(k===2)return {t:`${a} + ${10-a}`,a:10,tip:`${a} and ${10-a} are friends of 10.`};const T=R(1,9)*10;if(k===3)return {t:`${T} + ☐ = 100`,a:100-T,tip:`${T/10} + ${10-T/10} = 10, so ${T} + ${100-T} = 100.`};return {t:`100 − ${T}`,a:100-T,tip:`${T/10} + ${10-T/10} = 10, so 100 − ${T} = ${100-T}.`};}},
+{id:'2',step:2,name:'Doubles',sub:'Doubles and near doubles',color:'#FFB627',goal:30,
+ card:{title:'Doubles and near doubles',ex:['6 + 7 = ?','6 + 6 = 12 (double)','7 is one more, so 12 + 1 = 13'],say:['Doubles are easy to remember: 6 + 6 = 12, 7 + 7 = 14, 8 + 8 = 16.','When the numbers are next to each other, double the smaller one and add 1.','Ask him: “Which double helps you here?”']},
+ gen(){const k=R(0,3);const a=R(2,10);if(k===0)return {t:`${a} + ${a}`,a:2*a,tip:`Double ${a} is ${2*a}.`};if(k<=2){const [x,y]=Math.random()<.5?[a,a+1]:[a+1,a];return {t:`${x} + ${y}`,a:2*a+1,tip:`Double ${a} = ${2*a}, plus 1 more = ${2*a+1}.`};}
+  const b=R(11,25);return {t:`${b} + ${b}`,a:2*b,tip:`Double the tens: ${Math.floor(b/10)*20}. Double the ones: ${b%10*2}. Together: ${2*b}.`};}},
+{id:'3',step:3,name:'Bridge 10',sub:'8 + 5 = 8 + 2 + 3',color:'#22B573',goal:25,
+ card:{title:'Bridge through 10',ex:['8 + 5 = ?','8 needs 2 to make 10: split 5 into 2 + 3','8 + 2 = 10, then 10 + 3 = 13'],say:['Make 10 first, then add what is left.','For subtraction go back to 10 first: 13 − 5 → 13 − 3 = 10, then 10 − 2 = 8.','Draw it on a number line: one jump to 10, one jump after.']},
+ gen(){if(Math.random()<.55){const a=R(6,9),b=R(11-a,9);const t=10-a;return {t:`${a} + ${b}`,a:a+b,tip:`${a} + ${t} = 10, then + ${b-t} = ${a+b}.`};}const a=R(11,18),b=R(a-9,9);const t=a-10;return {t:`${a} − ${b}`,a:a-b,tip:`${a} − ${t} = 10, then − ${b-t} = ${a-b}.`};}},
+{id:'4',step:4,name:'±10, ±9, ±11',sub:'47 + 9 = 47 + 10 − 1',color:'#3A6FF7',goal:25,
+ card:{title:'Add and take away 10, 9 and 11',ex:['47 + 9 = ?','+9 is +10, then −1','47 + 10 = 57, 57 − 1 = 56'],say:['Adding 10 only changes the tens digit: 47 + 10 = 57.','+9: add 10, then take 1 back. +11: add 10, then 1 more.','−9: take 10, then give 1 back. Use a hundred chart: one row down is +10.']},
+ gen(){const n=R(21,88);const k=R(0,5);const ops=[[10,'+'],[10,'−'],[9,'+'],[9,'−'],[11,'+'],[11,'−']][k];const [m,o]=ops;const a=o==='+'?n+m:n-m;
+  const tip=m===10?`Only the tens change: ${n} ${o} 10 = ${a}.`:m===9?(o==='+'?`${n} + 10 = ${n+10}, then − 1 = ${a}.`:`${n} − 10 = ${n-10}, then + 1 = ${a}.`):(o==='+'?`${n} + 10 = ${n+10}, then + 1 = ${a}.`:`${n} − 10 = ${n-10}, then − 1 = ${a}.`);return {t:`${n} ${o} ${m}`,a,tip};}},
+{id:'5',step:5,name:'Cross a ten',sub:'47 + 8, 73 − 6',color:'#7B5CF5',goal:20,
+ card:{title:'2-digit ± 1-digit across a ten',ex:['47 + 8 = ?','47 needs 3 to reach 50','50 + 5 = 55'],say:['Same as bridging 10, but with bigger numbers: jump to the next ten first.','Subtraction: 73 − 6 → 73 − 3 = 70, then 70 − 3 = 67.','Say the ten you are jumping to: “47 … 50 … 55”.']},
+ gen(){if(Math.random()<.5){let a=R(12,88);if(a%10===0)a++;const b=R(Math.max(3,10-a%10),9);const t=10-a%10;return {t:`${a} + ${b}`,a:a+b,tip:`${a} + ${t} = ${a+t}, then + ${b-t} = ${a+b}.`};}
+  let a=R(21,99);if(a%10===9)a--;if(a%10===0)a++;const b=R(Math.max(3,a%10+1),9);const t=a%10;return {t:`${a} − ${b}`,a:a-b,tip:`${a} − ${t} = ${a-t}, then − ${b-t} = ${a-b}.`};}},
+{id:'6',step:6,name:'2-digit ± 2-digit',sub:'58 + 25, 49 + 26, 62 − 57',color:'#E2489A',goal:12,
+ card:{title:'2-digit ± 2-digit in your head',ex:['58 + 25 = ?','Add the tens: 58 + 20 = 78','Add the ones: 78 + 5 = 83'],say:['Split the second number into tens and ones. Add the tens first.','Numbers ending in 9 or 8? Round: 49 + 26 = 50 + 25 = 75.','Subtraction with close numbers: count up. 62 − 57: 57 → 60 is 3, 60 → 62 is 2, answer 5.']},
+ gen(){const k=R(0,3);
+  if(k===0){let a=R(15,69),b=R(12,Math.min(39,99-a));if(b%10===0)b++;return {t:`${a} + ${b}`,a:a+b,tip:`${a} + ${b-b%10} = ${a+b-b%10}, then + ${b%10} = ${a+b}.`};}
+  if(k===1){const a=R(1,6)*10+pick([8,9]),b=R(12,40);const up=10-a%10;return {t:`${a} + ${b}`,a:a+b,tip:`Round ${a} up to ${a+up}, take ${up} from ${b}: ${a+up} + ${b-up} = ${a+b}.`};}
+  if(k===2){const b=R(21,88),d=R(3,14),a=b+d;return {t:`${a} − ${b}`,a:d,tip:`Count up from ${b}: to ${Math.ceil((b+1)/10)*10} is ${Math.ceil((b+1)/10)*10-b}, then to ${a}. Total ${d}.`};}
+  let a=R(41,98),b=R(12,a-10);if(b%10===0)b++;return {t:`${a} − ${b}`,a:a-b,tip:`${a} − ${b-b%10} = ${a-b+b%10}, then − ${b%10} = ${a-b}.`};}},
+{id:'7a',step:7,name:'×÷ 2, 5, 10',sub:'Easy tables',color:'#14A3A3',goal:30,
+ card:{title:'Times tables: 2, 5 and 10',ex:['5 × 7 = ?','10 × 7 = 70','Half of 70 = 35'],say:['×2 is a double. ×10 puts a 0 on the end. ×5 is half of ×10.','Division: think of the times fact. 35 ÷ 5 → 5 × ? = 35.','Skip-count together by 5s with claps.']},
+ gen(){return mulQ([2,5,10]);}},
+{id:'7b',step:7,name:'×÷ 3, 4',sub:'Double tricks',color:'#3A6FF7',goal:25,
+ card:{title:'Times tables: 3 and 4',ex:['4 × 8 = ?','Double 8 = 16','Double again = 32'],say:['×4 = double, then double again.','×3 = double, then add one more group: 3 × 7 = 14 + 7 = 21.','Practise the fact family: 3, 7, 21 → 3 × 7, 7 × 3, 21 ÷ 3, 21 ÷ 7.']},
+ gen(){return mulQ([3,4]);}},
+{id:'7c',step:7,name:'×÷ 9, 6',sub:'Use ×10 and ×5',color:'#FF7A45',goal:25,
+ card:{title:'Times tables: 9 and 6',ex:['9 × 6 = ?','10 × 6 = 60','60 − 6 = 54'],say:['×9 = ×10, then take away one group.','×6 = ×5, then add one more group: 6 × 7 = 35 + 7 = 42.','Fun check for ×9: the digits add up to 9 (54 → 5 + 4 = 9).']},
+ gen(){return mulQ([9,6]);}},
+{id:'7d',step:7,name:'×÷ 7, 8',sub:'The hardest facts',color:'#7B5CF5',goal:22,
+ card:{title:'Times tables: 7 and 8',ex:['7 × 8 = ?','5 × 8 = 40 and 2 × 8 = 16','40 + 16 = 56'],say:['×8 = double, double, double: 8 × 6 → 12 → 24 → 48.','×7 = ×5 + ×2.','Rhyme: “5, 6, 7, 8 → 56 = 7 × 8”.']},
+ gen(){return mulQ([7,8]);}},
+{id:'mix',step:8,name:'Mix master',sub:'Everything together',color:'#1B2440',goal:22,
+ card:{title:'Mixed facts',ex:['Look at the sign first!','+ − × ÷','Pick the strategy, then answer'],say:['Before answering, he says the sign out loud.','If he is slow, ask “Which trick helps?” not “What is the answer?”.','Race a few times and celebrate the best score.']},
+ gen(){return LEVELS[R(0,LEVELS.length-2)].gen();}}
+];
+const LI=id=>LEVELS.findIndex(l=>l.id===id);
+function genQ(i,review){if(review&&i>0&&Math.random()<.25){const j=R(0,i-1);const q=LEVELS[j].gen();q.rev=true;return q;}return LEVELS[i].gen();}
+
+/* ================================================================ screens */
+function home(){clr(false);
+ app.append($(`<div class="top"><span class="logo">🏎️</span><h1>Mental Math Race<small>Learn the trick, then race your best!</small></h1><button class="ib" id="hi">📋</button><button class="ib" id="se">⚙️</button></div>`));
+ const map=$('<div class="map"></div>');let last=0;
+ LEVELS.forEach((L,i)=>{if(L.step!==last){map.append($(`<div class="step">${L.step<8?'Step '+L.step:'Final'}</div>`));last=L.step;}
+  const open=DB.teacherAll||i<DB.unlocked;const st=DB.stars[L.id]||0;const best=DB.best[L.id];
+  const b=$(`<button class="lvl ${open?'':'lock'} ${i===DB.unlocked-1?'now':''}"><span class="badge" style="background:${L.color}">${open?L.id.toUpperCase():'🔒'}</span><span><b>${L.name}</b><small>${L.sub}${best!==undefined?` · best ${best}`:''} · goal ${L.goal}</small></span><span class="st">${'★'.repeat(st)}${'☆'.repeat(3-st)}</span></button>`);
+  b.onclick=()=>{if(!open){toast('Get 3 stars on the level before to unlock this one!');return;}intro(i);};map.append(b);});
+ app.append(map);app.querySelector('#hi').onclick=history;app.querySelector('#se').onclick=settings;
+ const now=app.querySelector('.now');if(now)setTimeout(()=>now.scrollIntoView({block:'center',behavior:'smooth'}),100);}
+function toast(t){const m=$(`<div class="modal"><div class="card" style="text-align:center"><div style="font-size:20px;font-weight:900;margin:6px 0 14px">${t}</div><button class="btn">OK</button></div></div>`);m.querySelector('button').onclick=()=>m.remove();document.body.append(m);}
+function intro(i){const L=LEVELS[i];clr(false);
+ const c=$(`<div class="card"><div class="top" style="margin:0"><button class="ib" id="bk">◀</button><h1 style="font-size:20px">Level ${L.id.toUpperCase()} · ${L.name}</h1></div>
+  <div class="strat"><h3>💡 The trick: ${L.card.title}</h3><div class="ex">${L.card.ex.map((s,k)=>`<span class="s ${k===0?'on':''}">${s}</span>`).join('')}</div><button class="btn w" id="nx" style="font-size:16px;padding:10px 14px;box-shadow:none">Show next step ▶</button></div>
+  <div class="btns"><button class="btn learn" id="le">📚 Learn<span>With teacher · no timer</span></button><button class="btn race" id="ra">🏁 Race<span>60 seconds · beat your best</span></button></div>
+  <div class="say"><b>Teacher: say this</b><ul style="margin:6px 0 0;padding-left:20px">${L.card.say.map(s=>`<li>${s}</li>`).join('')}</ul></div>
+  <div style="color:var(--mute);font-size:14px;margin-top:10px">Goal: ${L.goal} correct in 60 seconds with 90% right → 3 stars and the next level opens.${DB.best[L.id]!==undefined?` Best so far: <b>${DB.best[L.id]}</b>.`:''}</div></div>`);
+ app.append(c);let k=1;const ss=c.querySelectorAll('.ex .s');c.querySelector('#nx').onclick=e=>{if(k<ss.length){ss[k++].classList.add('on');}if(k>=ss.length)e.target.style.display='none';};
+ c.querySelector('#bk').onclick=home;c.querySelector('#le').onclick=()=>learn(i);c.querySelector('#ra').onclick=()=>race(i);}
+
+/* ---------- keypad ---------- */
+function keypad(onKey){const p=$(`<div class="pad"></div>`);['1','2','3','4','5','6','7','8','9','⌫','0','✓'].forEach(k=>{const b=$(`<button class="${k==='✓'?'k-ok':k==='⌫'?'k-del':''}">${k}</button>`);b.onpointerdown=e=>{e.preventDefault();onKey(k);};p.append(b);});
+ const kh=e=>{if(/^[0-9]$/.test(e.key))onKey(e.key);else if(e.key==='Backspace')onKey('⌫');else if(e.key==='Enter')onKey('✓');};document.addEventListener('keydown',kh);p._off=()=>document.removeEventListener('keydown',kh);return p;}
+
+/* ---------- learn (class) ---------- */
+function learn(i){const L=LEVELS[i];clr(true);let n=0,right=0,q,typed='',locked=false;
+ const c=$(`<div class="card playwrap"><div class="hud"><button class="ib" id="bk">◀</button><span class="pill">📚 ${L.name}</span><span class="pill" id="sc" style="margin-left:auto">✅ 0 / 0</span></div>
+  <div class="qbox"><div class="q" id="q"></div><div class="ans" id="a">&nbsp;</div></div><div class="tip" id="tip"></div>
+  <div style="text-align:center;margin-top:6px"><button class="btn w" id="th" style="font-size:16px;padding:10px 14px;box-shadow:0 2px 0 #CBD6EE">💡 Show the trick</button></div></div>`);
+ app.append(c);const pad=keypad(key);c.append(pad);const A=c.querySelector('#a'),T=c.querySelector('#tip');
+ c.querySelector('#bk').onclick=()=>{pad._off();intro(i);};c.querySelector('#th').onclick=()=>{T.textContent='💡 '+q.tip;T.classList.add('show');};
+ function next(){q=L.gen();typed='';locked=false;c.querySelector('#q').textContent=q.t.replace('☐','?')+(q.t.includes('☐')?'':' = ?');A.innerHTML='&nbsp;';A.className='ans';T.classList.remove('show');}
+ function key(k){if(locked){if(k==='✓')next();return;}if(k==='⌫'){typed=typed.slice(0,-1);}else if(k==='✓'){if(typed)check();return;}else if(typed.length<4)typed+=k;A.textContent=typed||' ';if(typed.length===String(q.a).length&&+typed===q.a)check();}
+ function check(){n++;const ok=+typed===q.a;if(ok)right++;beep(ok);A.className='ans '+(ok?'ok':'no');T.innerHTML=(ok?'✅ Yes! ':`❌ It's <b>${q.a}</b>. `)+'💡 '+q.tip+'<br><small style="color:var(--mute)">Press ✓ for the next one</small>';T.classList.add('show');locked=true;c.querySelector('#sc').textContent=`✅ ${right} / ${n}`;}
+ next();}
+
+/* ---------- race (homework) ---------- */
+function race(i){const L=LEVELS[i];clr(true);const best=DB.best[L.id]||0;const goal=L.goal;const DUR=60;
+ let score=0,tries=0,q,typed='',qStart=0,left=DUR,log=[],tipT=null,running=false,lock=false;
+ const c=$(`<div class="playwrap"><div class="hud"><button class="ib" id="bk">◀</button><span class="pill">🏁 ${L.name}</span><span class="pill" style="margin-left:auto">✅ <span id="sc">0</span></span><span class="pill t">⏱ <span id="tm">${DUR}</span></span></div>
+  <div class="track" id="tr"><span class="cloud" style="left:12%">☁️</span><span class="cloud" style="left:60%">☁️</span><div class="dash"></div><div class="finish"></div><span class="flag">🏁</span>
+  <span class="car ghost" id="gh">🚙</span><span class="tag" id="gt" style="top:22%;left:8px">BEST ${best}</span><span class="car me" id="me">🏎️</span><span class="tag" id="mt" style="bottom:4%;left:8px">YOU</span></div>
+  <div class="qbox"><div class="q" id="q">Ready?</div><div class="ans" id="a">&nbsp;</div></div><div class="tip" id="tip"></div></div>`);
+ app.append(c);const pad=keypad(key);c.append(pad);const A=c.querySelector('#a'),T=c.querySelector('#tip'),tr=c.querySelector('#tr');
+ const W=()=>tr.clientWidth-90;const target=Math.max(goal,best+2);
+ const pos=(el,tag,v)=>{const x=8+Math.min(1,v/target)*W();el.style.left=x+'px';tag.style.left=x+'px';};
+ c.querySelector('#bk').onclick=()=>{stop();pad._off();intro(i);};
+ let iv=null;function stop(){clearInterval(iv);clearTimeout(tipT);running=false;}
+ // countdown
+ const cd=$('<div class="count">3</div>');document.body.append(cd);let n=3;const ci=setInterval(()=>{n--;if(n>0)cd.textContent=n;else if(n===0)cd.textContent='GO!';else{clearInterval(ci);cd.remove();start();}},650);
+ function start(){running=true;next();const t0=Date.now();iv=setInterval(()=>{left=Math.max(0,DUR-Math.floor((Date.now()-t0)/1000));c.querySelector('#tm').textContent=left;pos(c.querySelector('#gh'),c.querySelector('#gt'),best*(DUR-left)/DUR);if(left<=0){stop();pad._off();finish();}},200);}
+ function next(){q=genQ(i,true);typed='';lock=false;qStart=Date.now();c.querySelector('#q').textContent=q.t.replace('☐','?')+(q.t.includes('☐')?'':' = ?');A.innerHTML='&nbsp;';A.className='ans';T.classList.remove('show');clearTimeout(tipT);
+  tipT=setTimeout(()=>{if(running){T.textContent='💡 '+q.tip;T.classList.add('show');q.slowTip=true;}},4000);}
+ function key(k){if(!running||lock)return;if(k==='⌫')typed=typed.slice(0,-1);else if(k==='✓'){if(typed)check();return;}else if(typed.length<4)typed+=k;A.textContent=typed||' ';if(typed.length>=String(q.a).length)check();}
+ function check(){lock=true;tries++;const ok=+typed===q.a;const secs=(Date.now()-qStart)/1000;log.push({t:q.t,a:q.a,g:typed,ok,secs,tip:!!q.slowTip});beep(ok);
+  if(ok){score++;c.querySelector('#sc').textContent=score;pos(c.querySelector('#me'),c.querySelector('#mt'),score);A.className='ans ok';const p=$('<span class="plus">+1</span>');const me=c.querySelector('#me');p.style.left=(parseFloat(me.style.left)||8)+30+'px';p.style.top='48%';tr.append(p);setTimeout(()=>p.remove(),800);setTimeout(next,180);}
+  else{A.className='ans no';T.innerHTML=`It's <b>${q.a}</b>. 💡 ${q.tip}`;T.classList.add('show');setTimeout(next,1700);}}
+ function finish(){const acc=tries?Math.round(score/tries*100):0;let stars=0;if(score>=goal&&acc>=90)stars=3;else if(score>=goal*.7&&acc>=80)stars=2;else if(score>=goal*.4)stars=1;
+  const newBest=score>best;if(newBest)DB.best[L.id]=score;DB.stars[L.id]=Math.max(DB.stars[L.id]||0,stars);let unlocked=false;if(stars===3&&DB.unlocked<=i+1&&i+1<LEVELS.length){DB.unlocked=i+2;unlocked=true;}
+  const rec={date:new Date().toISOString(),level:L.id,name:L.name,score,tries,acc,stars,best:Math.max(best,score),missed:log.filter(x=>!x.ok).map(x=>x.t.includes('☐')?`${x.t.replace('☐','?')} → ${x.a} (wrote ${x.g})`:`${x.t} = ${x.a} (wrote ${x.g})`),slow:log.filter(x=>x.ok&&x.secs>4).map(x=>x.t.replace('☐','?'))};
+  DB.history.unshift(rec);DB.history=DB.history.slice(0,200);save();results(i,rec,newBest,unlocked);}
+}
+function results(i,r,newBest,unlocked){const L=LEVELS[i];clr(false);
+ const c=$(`<div class="card res"><div class="stars">${'★'.repeat(r.stars)}${'☆'.repeat(3-r.stars)}</div><div class="score">${r.score}</div><div style="font-weight:900;font-size:18px;color:var(--mute)">correct in 60 seconds · goal ${L.goal}</div>
+  ${newBest?'<div class="unlock" style="background:linear-gradient(90deg,#FFB627,#FF7A45)">🏆 New best score!</div>':''}${unlocked?`<div class="unlock">🔓 Level ${LEVELS[i+1].id.toUpperCase()} unlocked: ${LEVELS[i+1].name}!</div>`:''}
+  <div class="grid3"><div><b>${r.acc}%</b>right</div><div><b>${r.best}</b>best</div><div><b>${r.slow.length}</b>slow</div></div>
+  ${r.missed.length?`<div class="miss"><b>Practise these:</b><ul>${r.missed.slice(0,8).map(m=>`<li>${m}</li>`).join('')}</ul></div>`:''}
+  ${r.stars<3?`<div style="color:var(--mute);font-size:15px">To get 3 stars: ${L.goal} correct with 90% right. ${r.acc<90?'Slow down a little and use the trick!':'Keep racing, you are close!'}</div>`:''}
+  <div class="acts"><button class="btn race" id="ag">🏁 Race again</button><a class="btn g" id="wa" style="text-decoration:none" target="_blank" rel="noopener">📤 Send to teacher</a><button class="btn w" id="cp">📋 Copy</button><button class="btn w" id="mp">🗺️ Levels</button></div></div>`);
+ app.append(c);const msg=report(r);c.querySelector('#wa').href=`https://wa.me/${(DB.phone||'').replace(/[^0-9]/g,'')}?text=${encodeURIComponent(msg)}`;
+ c.querySelector('#ag').onclick=()=>race(i);c.querySelector('#mp').onclick=home;c.querySelector('#cp').onclick=e=>{try{navigator.clipboard.writeText(msg).then(()=>e.target.textContent='✅ Copied',()=>showText(msg));}catch(x){showText(msg);}};}
+function report(r){const d=new Date(r.date);return `🏎️ Mental Math Race – Khaled\n${d.toDateString()} ${d.toTimeString().slice(0,5)}\nLevel ${r.level.toUpperCase()}: ${r.name}\nScore: ${r.score} correct in 60 s (${r.acc}% right) ${'⭐'.repeat(r.stars)}\nBest: ${r.best}\n`+(r.missed.length?`Missed:\n${r.missed.slice(0,10).map(m=>'• '+m).join('\n')}\n`:'No mistakes! 🎉\n')+(r.slow.length?`Slow (>4 s): ${r.slow.slice(0,10).join(', ')}`:'');}
+function showText(t){const m=$(`<div class="modal"><div class="card"><b>Copy this report</b><textarea class="txt" rows="9">${t}</textarea><div class="acts"><button class="btn">Close</button></div></div></div>`);m.querySelector('button').onclick=()=>m.remove();document.body.append(m);}
+function history(){clr(false);const c=$(`<div class="card"><div class="top" style="margin:0 0 8px"><button class="ib" id="bk">◀</button><h1 style="font-size:20px">📋 Race history</h1></div></div>`);
+ if(!DB.history.length)c.append($('<p style="color:var(--mute)">No races yet.</p>'));else{const t=$('<table class="h"><tr><th>Date</th><th>Level</th><th>Score</th><th>Right</th><th></th></tr></table>');DB.history.slice(0,80).forEach(r=>{const tr=$(`<tr><td>${new Date(r.date).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</td><td>${r.level.toUpperCase()} ${r.name}</td><td><b>${r.score}</b></td><td>${r.acc}%</td><td style="color:#F2A900">${'★'.repeat(r.stars)}</td></tr>`);tr.onclick=()=>showText(report(r));t.append(tr);});c.append(t);}
+ app.append(c);c.querySelector('#bk').onclick=home;}
+function settings(){const m=$(`<div class="modal"><div class="card"><h2 style="margin:0 0 6px">⚙️ Teacher settings</h2><div class="lbl">Teacher's WhatsApp number (with country code, e.g. 9665…)</div><input class="txt" id="ph" inputmode="tel" value="${DB.phone||''}">
+  <div class="lbl">Options</div><label style="display:block;margin:6px 0"><input type="checkbox" id="al" ${DB.teacherAll?'checked':''}> Open all levels (teacher)</label><label style="display:block;margin:6px 0"><input type="checkbox" id="sn" ${DB.sound?'checked':''}> Sounds</label>
+  <div class="acts" style="justify-content:flex-start"><button class="btn" id="ok">Save</button><button class="btn w" id="rs">Reset progress</button></div></div></div>`);document.body.append(m);
+ m.querySelector('#ok').onclick=()=>{DB.phone=m.querySelector('#ph').value.trim();DB.teacherAll=m.querySelector('#al').checked;DB.sound=m.querySelector('#sn').checked;save();m.remove();home();};
+ m.querySelector('#rs').onclick=()=>{m.remove();const k=$(`<div class="modal"><div class="card" style="text-align:center"><div style="font-size:19px;font-weight:900;margin-bottom:12px">Reset all stars, best scores and history?</div><div class="acts"><button class="btn race" id="y">Yes, reset</button><button class="btn w" id="n">No</button></div></div></div>`);document.body.append(k);k.querySelector('#n').onclick=()=>k.remove();k.querySelector('#y').onclick=()=>{DB.unlocked=1;DB.best={};DB.stars={};DB.history=[];save();k.remove();home();};};}
+home();
+</script>
+</body>
+</html>
